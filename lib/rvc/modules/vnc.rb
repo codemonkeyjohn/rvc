@@ -161,3 +161,41 @@ def vnc_client_connect ip, port, password, vnc_opts=nil
   puts
 end
 
+
+opts :send_chars do
+  summary "Send characters to vm over vnc"
+  arg :vm, nil, :lookup => VIM::VirtualMachine
+  arg :text, "text to send to vm", :required => true, :multi => true
+  opt :wait, "seconds to wait in between sending different texts", :default => 0
+  opt :add_shift_for_caps, "workaround to get caps working in vSphere 5.0 and below", :default => true
+end
+
+def send_chars vm, text, opts
+  vnc = shell.eval_command Shellwords.join ["vnc.on", vm.rvc_path_str]
+
+  # As of vSphere 5.0, if you don't send shift before a capital letter, the letter
+  # will be received by the vm as the lower case version of the letter.  This is a
+  # workaround that could be removed if VMware fixes this issue in a later version.
+  if opts[:add_shift_for_caps]
+    text.each do |str|
+      newstr = ""
+      in_tag = false
+      str.each_char do |char|
+        case char
+        when ">"
+          in_tag = false
+        when "<"
+          in_tag = true
+        when ('A'..'Z')
+          newstr << "<SHIFT>" unless in_tag
+        end
+        newstr << char
+      end
+      str.replace newstr
+    end
+  end
+
+  # To get this to work, you need to download jvncsender and build it.  The git repo
+  # for this is at https://github.com/jedi4ever/jvncsender/.
+  system "java -jar /tmp/jvncsender-0.0.1-SNAPSHOT-jar-with-dependencies.jar -host #{vnc[:ip]} -port #{vnc[:port]} -password #{vnc[:password]} -text #{Shellwords.join text} -wait #{opts[:wait]}" or err "VNC Failed"
+end
