@@ -109,6 +109,22 @@ def connect uri, opts
 
   if opts[:cookie]
     vim.cookie = opts[:cookie]
+  elsif username == "USE_SSPI"
+    auth = nil
+    token = nil
+    begin
+      if auth.nil?
+        require 'win32/sspi'
+        auth = Win32::SSPI::NegotiateAuth.new
+        token = auth.get_initial_token
+      end
+      vim.serviceContent.sessionManager.LoginBySSPI :base64Token => token
+    rescue LoadError
+      err "rubysspi gem required for SSPI"
+    rescue RbVmomi::VIM::SSPIChallenge
+      token = auth.complete_authentication($!.fault.base64Token)
+      retry
+    end
   else
     password_given = password != nil
     loop do
