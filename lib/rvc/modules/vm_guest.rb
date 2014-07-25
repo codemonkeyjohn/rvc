@@ -348,9 +348,9 @@ def download_file vm, opts
       :guestFilePath => opts[:guest_path]
     ).url
 
-  download_uri = URI.parse(download_url.gsub /http(s?):\/\/\*:[0-9]*/, "")
-  download_path = "#{download_uri.path}?#{download_uri.query}"
-  
+  download_url.sub! /\*/, vm._connection.http.address if download_url =~ /http(s?):\/\/\*:[0-9]*/
+  download_uri = URI.parse(download_url)
+
   generic_http_download download_uri, opts[:local_path]
 end
 
@@ -401,9 +401,9 @@ def upload_file vms, opts
         :overwrite => opts[:overwrite]
       )
   
-    upload_uri = URI.parse(upload_url.gsub /http(s?):\/\/\*:[0-9]*/, "")
-    upload_path = "#{upload_uri.path}?#{upload_uri.query}"
-  
+    upload_url.sub! /\*/, vm._connection.http.address if upload_url =~ /http(s?):\/\/\*:[0-9]*/
+    upload_uri = URI.parse(upload_url)
+
     generic_http_upload opts[:local_path], upload_uri, file_size
   end
 end
